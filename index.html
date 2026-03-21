@@ -252,6 +252,7 @@
             <table id="leaderboardTable">
                 <thead>
                     <tr>
+                        <th>Place</th>
                         <th>Shooter</th>
                         <th>Time (s)</th>
                     </tr>
@@ -338,12 +339,12 @@
             // Sort all attempts by time (fastest first)
             allAttempts.sort((a, b) => a.time - b.time);
             // Add to leaderboard
-            allAttempts.forEach(attempt => {
+            allAttempts.forEach((attempt, index) => {
                 const row = document.createElement('tr');
                 if (attempt.isLatest) {
                     row.classList.add('latest');
                 }
-                row.innerHTML = `<td>${attempt.shooter}</td><td>${attempt.time.toFixed(2)}</td>`;
+                row.innerHTML = `<td>${index + 1}.</td><td>${attempt.shooter}</td><td>${attempt.time.toFixed(2)}</td>`;
                 leaderboardBody.appendChild(row);
             });
         }
