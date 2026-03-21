@@ -388,7 +388,7 @@
         // Stop timer
         function stopTimer() {
             clearInterval(timerInterval);
-            const elapsed = (Date.now() - startTime) / 1000;
+            const elapsed = parseFloat(timerDisplay.textContent);
             const currentShooter = shooterSelect.value;
 
             if (currentShooter) {
