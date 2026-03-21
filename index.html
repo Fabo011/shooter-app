@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shooter Timer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f9;
+        }
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 10px 5px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        button:disabled {
+            background-color: #cccccc;
+        }
+        #fullResetBtn {
+            background-color: #f44336;
+        }
+        input, select {
+            padding: 10px;
+            margin: 10px 0;
+            width: 80%;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        #timer {
+            font-size: 48px;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        #leaderboard {
+            margin-top: 20px;
+            text-align: left;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .latest {
+            background-color: #ffeb3b;
+        }
+        .shooter-controls {
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Shooter Timer</h1>
+
+        <div class="shooter-controls">
+            <select id="shooterSelect">
+                <option value="">-- Select Shooter --</option>
+            </select>
+            <input type="text" id="newShooter" placeholder="New shooter name">
+            <button id="addShooterBtn">Add Shooter</button>
+            <input type="number" id="countdown" placeholder="Countdown (seconds)" value="3" min="1">
+        </div>
+
+        <div>
+            <button id="startBtn">Start</button>
+            <button id="stopBtn" disabled>Stop</button>
+            <button id="resetBtn">Reset</button>
+            <button id="fullResetBtn">Full Reset (Clear All)</button>
+        </div>
+
+        <div id="timer">0.00</div>
+        <audio id="beep" preload="auto"></audio>
+
+        <h2>Leaderboard</h2>
+        <div id="leaderboard">
+            <table id="leaderboardTable">
+                <thead>
+                    <tr>
+                        <th>Shooter</th>
+                        <th>Time (s)</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboardBody">
+                    <!-- Leaderboard entries will be added here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // DOM elements
+        const shooterSelect = document.getElementById('shooterSelect');
+        const newShooterInput = document.getElementById('newShooter');
+        const addShooterBtn = document.getElementById('addShooterBtn');
+        const countdownInput = document.getElementById('countdown');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const fullResetBtn = document.getElementById('fullResetBtn');
+        const timerDisplay = document.getElementById('timer');
+        const beep = document.getElementById('beep');
+        const leaderboardBody = document.getElementById('leaderboardBody');
+
+        // Base64 beep sound (works in all browsers)
+        const beepSound = "data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU...";
+
+        // Variables
+        let countdownInterval;
+        let timerInterval;
+        let startTime;
+        let isRunning = false;
+        let shooters = JSON.parse(localStorage.getItem('shooters')) || [];
+        let attempts = JSON.parse(localStorage.getItem('shooterAttempts')) || {};
+        let latestAttempts = JSON.parse(localStorage.getItem('latestAttempts')) || {};
+
+        // Initialize shooter dropdown
+        function updateShooterDropdown() {
+            shooterSelect.innerHTML = '<option value="">-- Select Shooter --</option>';
+            shooters.forEach(shooter => {
+                const option = document.createElement('option');
+                option.value = shooter;
+                option.textContent = shooter;
+                shooterSelect.appendChild(option);
+            });
+        }
+
+        // Load leaderboard (sorted by fastest time across all shooters)
+        function loadLeaderboard() {
+            leaderboardBody.innerHTML = '';
+            // Collect all attempts with shooter info
+            const allAttempts = [];
+            for (const [shooter, times] of Object.entries(attempts)) {
+                times.forEach((time, index) => {
+                    allAttempts.push({
+                        shooter: shooter,
+                        time: time,
+                        isLatest: index === times.length - 1
+                    });
+                });
+            }
+            // Sort all attempts by time (fastest first)
+            allAttempts.sort((a, b) => a.time - b.time);
+            // Add to leaderboard
+            allAttempts.forEach(attempt => {
+                const row = document.createElement('tr');
+                if (attempt.isLatest) {
+                    row.classList.add('latest');
+                }
+                row.innerHTML = `<td>${attempt.shooter}</td><td>${attempt.time.toFixed(2)}</td>`;
+                leaderboardBody.appendChild(row);
+            });
+        }
+
+        // Start countdown
+        function startCountdown() {
+            const countdownSeconds = parseInt(countdownInput.value);
+            let remaining = countdownSeconds;
+            timerDisplay.textContent = remaining.toFixed(2);
+
+            countdownInterval = setInterval(() => {
+                remaining -= 0.01;
+                timerDisplay.textContent = remaining.toFixed(2);
+
+                if (remaining <= 0) {
+                    clearInterval(countdownInterval);
+                    beep.src = beepSound;
+                    beep.play().catch(e => {
+                        // Fallback if audio fails
+                        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                        const oscillator = audioContext.createOscillator();
+                        oscillator.type = 'sine';
+                        oscillator.frequency.setValueAtTime(1000, audioContext.currentTime);
+                        oscillator.connect(audioContext.destination);
+                        oscillator.start();
+                        oscillator.stop(audioContext.currentTime + 0.5);
+                    });
+                    startTimer();
+                }
+            }, 10);
+        }
+
+        // Start timer
+        function startTimer() {
+            startTime = Date.now();
+            timerInterval = setInterval(() => {
+                const elapsed = (Date.now() - startTime) / 1000;
+                timerDisplay.textContent = elapsed.toFixed(2);
+            }, 10);
+        }
+
+        // Stop timer
+        function stopTimer() {
+            clearInterval(timerInterval);
+            const elapsed = (Date.now() - startTime) / 1000;
+            const currentShooter = shooterSelect.value;
+
+            if (currentShooter) {
+                if (!attempts[currentShooter]) {
+                    attempts[currentShooter] = [];
+                }
+                attempts[currentShooter].push(elapsed);
+                localStorage.setItem('shooterAttempts', JSON.stringify(attempts));
+                loadLeaderboard();
+            }
+
+            isRunning = false;
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+        }
+
+        // Reset timer
+        function resetTimer() {
+            clearInterval(countdownInterval);
+            clearInterval(timerInterval);
+            timerDisplay.textContent = '0.00';
+            isRunning = false;
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+        }
+
+        // Full reset (clear all local storage)
+        function fullReset() {
+            if (confirm("Are you sure you want to clear all shooters and times?")) {
+                localStorage.clear();
+                shooters = [];
+                attempts = {};
+                updateShooterDropdown();
+                loadLeaderboard();
+                timerDisplay.textContent = '0.00';
+                alert("All data has been cleared.");
+            }
+        }
+
+        // Add new shooter
+        addShooterBtn.addEventListener('click', () => {
+            const newShooter = newShooterInput.value.trim();
+            if (newShooter && !shooters.includes(newShooter)) {
+                shooters.push(newShooter);
+                localStorage.setItem('shooters', JSON.stringify(shooters));
+                updateShooterDropdown();
+                newShooterInput.value = '';
+            }
+        });
+
+        // Event listeners
+        startBtn.addEventListener('click', () => {
+            if (!isRunning && shooterSelect.value && countdownInput.value > 0) {
+                isRunning = true;
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                startCountdown();
+            }
+        });
+
+        stopBtn.addEventListener('click', stopTimer);
+        resetBtn.addEventListener('click', resetTimer);
+        fullResetBtn.addEventListener('click', fullReset);
+
+        // Initialize
+        updateShooterDropdown();
+        loadLeaderboard();
+    </script>
+</body>
+</html>
+
