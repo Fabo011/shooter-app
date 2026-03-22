@@ -3,6 +3,8 @@
 ## Overview
 This is a containerized Shooter Timer web application for competitive shooters. The app is deployed using Docker with automated CI/CD via GitHub Actions.
 
+**URL:** https://shooters.fabo011-cloud.de/
+
 ## Quick Start - Local Development
 
 ### Prerequisites
@@ -78,8 +80,6 @@ docker run -p 8066:8066 ghcr.io/fabo011/shooter-app:latest
 To use the GHCR image in docker-compose:
 
 ```yaml
-version: '3.8'
-
 services:
   shooter-app:
     image: ghcr.io/fabo011/shooter-app:latest
@@ -87,19 +87,6 @@ services:
     ports:
       - "8066:8066"
     restart: unless-stopped
-```
-
-## Project Structure
-```
-ShooterApp/
-├── index.html                 # Main application
-├── Dockerfile                 # Container configuration
-├── docker-compose.yml         # Local development setup
-├── nginx.conf                 # Nginx web server configuration
-├── .dockerignore              # Files to exclude from Docker build
-└── .github/
-    └── workflows/
-        └── build-and-push.yml # GitHub Actions CI/CD pipeline
 ```
 
 ## Configuration
@@ -129,40 +116,3 @@ ShooterApp/
 - Health checks
 - Auto-restart on failure
 - Optimized for production
-
-## Troubleshooting
-
-### Port Already in Use
-```bash
-# Change port in docker-compose.yml or run:
-docker run -p 9000:8066 shooter-timer:latest
-```
-
-### Image Won't Build
-```bash
-# Clear Docker cache
-docker builder prune
-
-# Rebuild
-docker-compose up --build
-```
-
-### GHCR Push Fails
-- Ensure you have a GitHub Personal Access Token with `write:packages` scope
-- Check GitHub Actions workflow permissions in repository settings
-
-## Health Check
-The container includes a health check that verifies the app is running:
-```bash
-docker ps  # Look for the "healthy" status
-```
-
-## Next Steps
-1. Push to GitHub to trigger automated builds
-2. Access your image at: `ghcr.io/fabo011/shooter-app:latest`
-3. Deploy to any Docker-compatible platform (Docker Swarm, Kubernetes, etc.)
-
-## Support
-For issues or questions, refer to:
-- [Docker Documentation](https://docs.docker.com/)
-- [GitHub Container Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
